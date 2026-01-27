@@ -204,13 +204,13 @@ def main() -> None:
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Update and read a Google Sheet')
-    parser.add_argument('sheet_name', nargs='?', default='Scratch 5E Character Sheet 2024',
+    parser.add_argument('google_sheet_name', nargs='?', default='Scratch 5E Character Sheet 2024',
                         help='Name of the Google spreadsheet to open')
-    parser.add_argument("path", nargs="?", default="character_export.pdf", help="Path to PDF file")
+    parser.add_argument("character_sheet", nargs="?", default="character_export.pdf", help="Path to PDF file")
     args = parser.parse_args()
 
     # Load character data from the specified PDF file
-    character_data = load_character_data(args.path)
+    character_data = load_character_data(args.character_sheet)
     find_anchor_points(character_data)
 
     # Print a minimal summary so the user can verify loading worked
@@ -219,8 +219,7 @@ def main() -> None:
     print("Data", mapped_data)
 
     # Write the mapped data to the Google Sheet
-    write_to_sheet(args.sheet_name, "Page 1", mapped_data)
-
+    write_to_sheet(args.google_sheet_name, "Page 1", mapped_data)
 
 if __name__ == '__main__':
     main()
