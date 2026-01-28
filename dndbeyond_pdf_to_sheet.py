@@ -11,37 +11,50 @@ scope = [
     'https://www.googleapis.com/auth/drive'
 ]
 
+anchor_points_map = {
+    "ABILITY SAVE DC": (None, None),
+    "=== ARMOR ===": (None, None),
+    "Resistances": (None, None),
+    "PERSONALITY TRAITS": (None, None),
+}
+
+# Each field is defined as a tuple of (page_index, anchor_point, line_index) where
+# anchor_point is a string to search for and line_index is the line offset from that anchor point.
 character_data_to_sheet_fields_map = {
-    'name': (0, 68),
-    'background': (0, 72),
-    'class': (0, 69),
+    'name': (0, "ABILITY SAVE DC", 1),
+    'class': (0, "ABILITY SAVE DC", 2),
+    'level': (0, "ABILITY SAVE DC", 2),
     'subclass': None,
-    'species': (0, 71),
-    'level': (0, 69),
-    'xp': (0, 73),
-    'armor_class': (0, 140),
-    'initiative': (0, 139),
-    'speed': (0, 142),
-    'hit_points_max': (0, 143),
-    'hit_dice': (0, 145),
-    'proficiency_bonus': (0, 141),
-    'size': (3,23),
-    'passive_perception': (0, 135),
-    'passive_insight': (0, 136),
-    'passive_investigation': (0, 137),
-    'strength': (0, 74),
-    'strength_mod': (0, 75),
-    'dexterity': (0, 76),
-    'dexterity_mod': (0, 77),
-    'constitution': (0, 78),
-    'constitution_mod': (0, 79),
-    'intelligence': (0, 80),
-    'intelligence_mod': (0, 81),
-    'wisdom': (0, 82),
-    'wisdom_mod': (0, 83),
-    'charisma': (0, 84),
-    'charisma_mod': (0, 85),
-    'strength_saving_throw': (0, 86),
+    'species': (0, "ABILITY SAVE DC", 4),
+    'background': (0, "ABILITY SAVE DC", 5),
+    'xp': (0, "ABILITY SAVE DC", 6),
+    
+    'initiative': (0, "=== ARMOR ===", -7),
+    'armor_class': (0, "=== ARMOR ===", -6),
+    'speed': (0, "=== ARMOR ===", -4),
+    'hit_points_max': (0, "=== ARMOR ===", -3),
+    'hit_dice': (0, "=== ARMOR ===", -1),
+    'proficiency_bonus': (0, "=== ARMOR ===", -5),
+    'size': (3, "PERSONALITY TRAITS", 3),
+
+    'passive_perception': (0, "=== ARMOR ===", -11),
+    'passive_insight': (0, "=== ARMOR ===", -10),
+    'passive_investigation': (0, "=== ARMOR ===", -9),
+
+    'strength': (0, "ABILITY SAVE DC", 7),
+    'strength_mod': (0, "ABILITY SAVE DC", 8),
+    'dexterity': (0, "ABILITY SAVE DC", 9),
+    'dexterity_mod': (0, "ABILITY SAVE DC", 10),
+    'constitution': (0, "ABILITY SAVE DC", 11),
+    'constitution_mod': (0, "ABILITY SAVE DC", 12),
+    'intelligence': (0, "ABILITY SAVE DC", 13),
+    'intelligence_mod': (0, "ABILITY SAVE DC", 14),
+    'wisdom': (0, "ABILITY SAVE DC", 15),
+    'wisdom_mod': (0, "ABILITY SAVE DC", 16),
+    'charisma': (0, "ABILITY SAVE DC", 17),
+    'charisma_mod': (0, "ABILITY SAVE DC", 18),
+
+    'strength_saving_throw': (0, "ABILITY SAVE DC", 19),
     'dexterity_saving_throw': None,
     'constitution_saving_throw': None,
     'intelligence_saving_throw': None,
@@ -52,7 +65,7 @@ character_data_to_sheet_fields_map = {
     'constitution_proficiency': None,
     'intelligence_proficiency': None,
     'wisdom_proficiency': None,
-    'charisma_proficiency': None,
+    'charisma_proficiency': (0, "Resistances", -1),
 }
 
 sheet_fields_to_sheet_cells_map = {
@@ -85,10 +98,6 @@ sheet_fields_to_sheet_cells_map = {
     'charisma_mod': 'V86',
 }
 
-anchor_points_map = {
-    "=== ARMOR ===": (None, None),
-    "Resistances": (None, None)
-}
 
 def find_index_of_string_in_character_data(target: str, character_data: list) -> tuple:
     """
@@ -142,8 +151,13 @@ def map_dnd_beyond_fields(dnd_beyond_data: list) -> Dict[str, Any]:
     """
     mapped_data = {}
     for key, ix in character_data_to_sheet_fields_map.items():
-        if ix:
-            mapped_data[key] = dnd_beyond_data[ix[0]][ix[1]].strip()
+        print("Mapping field:", key, "Index:", ix)
+        if ix is None:
+            continue
+        anchor = ix[1]
+        relative_index = ix[2]
+        absolute_index = anchor_points_map[anchor][1] + relative_index
+        mapped_data[key] = dnd_beyond_data[ix[0]][absolute_index].strip()
     return mapped_data
 
 def cleanup_special_cases(character_data: list, mapped_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -185,7 +199,7 @@ def write_to_sheet(sheet_name: str, worksheet_name: str, mapped_data: Dict[str, 
     # Open the Google Sheet using the provided name
     # Authenticate with credentials and create a client to interact with Google Sheets
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
-        'credentials.json',
+        'google-credentials.json',
         scope
         )
     client = gspread.authorize(credentials)
