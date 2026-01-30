@@ -425,15 +425,15 @@ def write_to_sheet(
     client = gspread.authorize(credentials)
     sheet = client.open(sheet_name)
     ws = sheet.worksheet(worksheet_name)
+    # Collect updates and send them in a single batch to reduce API calls
+    body = []
     for field, cell in sheet_fields_to_sheet_cells_map.items():
         if field in mapped_data:
-            print(f"Updating cell {cell} with value {mapped_data[field]}")
-            try:
-                ws.update_acell(cell, mapped_data[field])
-            except gspread.exceptions.GSpreadException as e:
-                print(f"Error updating cell {cell}: {e} if rate limit, sleeping for 61 seconds")
-                time.sleep(61)
-                ws.update_acell(cell, mapped_data[field])
+            print(f"Queuing update for cell {cell} with value {mapped_data[field]}")
+            body.append({"range": cell, "values": [[mapped_data[field]]]})
+    if not body:
+        return
+    ws.batch_update(body)
 
 
 def main() -> None:
