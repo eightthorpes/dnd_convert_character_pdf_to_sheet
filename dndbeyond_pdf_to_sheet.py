@@ -65,7 +65,7 @@ character_data_to_sheet_fields_map = {
     'constitution_proficiency': None,
     'intelligence_proficiency': None,
     'wisdom_proficiency': None,
-    'charisma_proficiency': (0, "Resistances", -1),
+    'charisma_proficiency': None,
 }
 
 sheet_fields_to_sheet_cells_map = {
@@ -96,6 +96,18 @@ sheet_fields_to_sheet_cells_map = {
     'wisdom_mod': 'V57',
     'charisma': 'AE87',
     'charisma_mod': 'V86',
+    'strength_saving_throw': 'F49',
+    'dexterity_saving_throw': 'F70',
+    'constitution_saving_throw': 'F95',
+    'intelligence_saving_throw': 'X38',
+    'wisdom_saving_throw': 'X67',
+    'charisma_saving_throw': 'X96',
+    'strength_proficiency': 'D49',
+    'dexterity_proficiency': 'D70',
+    'constitution_proficiency': 'D95',
+    'intelligence_proficiency': 'V38',
+    'wisdom_proficiency': 'V67',
+    'charisma_proficiency': 'V96',
 }
 
 
@@ -174,13 +186,28 @@ def cleanup_special_cases(character_data: list, mapped_data: Dict[str, Any]) -> 
     mapped_data['class'] = mapped_data.get('class').split(' ')[0]
     mapped_data['level'] = mapped_data.get('level').split(' ')[-1]
     mapped_data['passive_abilities'] = f"PER:{mapped_data.get('passive_perception')}, INS:{mapped_data.get('passive_insight')}, INV:{mapped_data.get('passive_investigation')}"
+    
     # Handle ability saves
-    # abilities = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
-    # ability_saves_start = character_data_to_sheet_fields_map['strength_saving_throw'][1]
-    # ability_saves_end = anchor_points_map['Resistances'][1]
-    # for ability_index in character_data[0][ability_saves_start:ability_saves_end]:
-    #     print("Ability:", ability_index)
-    #     ability = abilities.pop(0)
+    abilities = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
+    anchor = character_data_to_sheet_fields_map['strength_saving_throw'][1]
+    anchor_index = anchor_points_map[anchor][1]
+    ability_saves_start = anchor_index + character_data_to_sheet_fields_map['strength_saving_throw'][2]
+    # Initialize proficiency flags
+    for ability in abilities:
+        mapped_data[f"{ability}_proficiency"] = False
+    current_ability = None
+    ability_saves_end = anchor_points_map['Resistances'][1]
+    # Iterate through ability saves
+    for ability_index in range(ability_saves_start, ability_saves_end):
+        if character_data[0][ability_index].strip() == '•':
+            current_ability = abilities.pop(0)
+            mapped_data[f"{current_ability}_proficiency"] = True
+            continue
+        elif not current_ability:
+            current_ability = abilities.pop(0)
+        mapped_data[f"{current_ability}_saving_throw"] = character_data[0][ability_index].strip()
+        current_ability = None
+
     return mapped_data
 
 
