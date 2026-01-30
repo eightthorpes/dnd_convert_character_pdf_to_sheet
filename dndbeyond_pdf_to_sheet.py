@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+import time
 from typing import Any, Dict
 import pymupdf
 import gspread
@@ -11,6 +12,8 @@ scope = [
     "https://www.googleapis.com/auth/drive",
 ]
 
+# Anchor points to find in the character data
+# Each anchor point maps to a tuple of (page_index, line_index)
 anchor_points_map = {
     "ABILITY SAVE DC": (None, None),
     "=== ARMOR ===": (None, None),
@@ -62,6 +65,63 @@ character_data_to_sheet_fields_map = {
     "intelligence_proficiency": None,
     "wisdom_proficiency": None,
     "charisma_proficiency": None,
+    # Skill proficiencies
+    "acrobatics_proficiency": None,
+    "animal_handling_proficiency": None,
+    "arcana_proficiency": None,
+    "athletics_proficiency": None,
+    "deception_proficiency": None,
+    "history_proficiency": None,
+    "insight_proficiency": None,
+    "intimidation_proficiency": None,
+    "investigation_proficiency": None,
+    "medicine_proficiency": None,
+    "nature_proficiency": None,
+    "perception_proficiency": None,
+    "performance_proficiency": None,
+    "persuasion_proficiency": None,
+    "religion_proficiency": None,
+    "sleight_of_hand_proficiency": None,
+    "stealth_proficiency": None,
+    "survival_proficiency": None,
+    # Skill bonuses
+    "acrobatics_bonus": None,
+    "animal_handling_bonus": None,
+    "arcana_bonus": None,
+    "athletics_bonus": None,
+    "deception_bonus": None,
+    "history_bonus": None,
+    "insight_bonus": None,
+    "intimidation_bonus": None,
+    "investigation_bonus": None,
+    "medicine_bonus": None,
+    "nature_bonus": None,
+    "perception_bonus": None,
+    "performance_bonus": None,
+    "persuasion_bonus": None,
+    "religion_bonus": None,
+    "sleight_of_hand_bonus": None,
+    "stealth_bonus": None,
+    "survival_bonus": None,
+    # Skill mods
+    "acrobatics_mod": None,
+    "animal_handling_mod": None,
+    "arcana_mod": None,
+    "athletics_mod": None,
+    "deception_mod": None,
+    "history_mod": None,
+    "insight_mod": None,
+    "intimidation_mod": None,
+    "investigation_mod": None,
+    "medicine_mod": None,
+    "nature_mod": None,
+    "perception_mod": None,
+    "performance_mod": None,
+    "persuasion_mod": None,
+    "religion_mod": None,
+    "sleight_of_hand_mod": None,
+    "stealth_mod": None,
+    "survival_mod": None,
 }
 
 sheet_fields_to_sheet_cells_map = {
@@ -104,6 +164,44 @@ sheet_fields_to_sheet_cells_map = {
     "intelligence_proficiency": "V38",
     "wisdom_proficiency": "V67",
     "charisma_proficiency": "V96",
+    # Skill proficiencies
+    "acrobatics_proficiency": "D74",
+    "animal_handling_proficiency": "V71",
+    "arcana_proficiency": "V42",
+    "athletics_proficiency": "D53",
+    "deception_proficiency": "V100",
+    "history_proficiency": "V44",
+    "insight_proficiency": "V73",
+    "intimidation_proficiency": "V102",
+    "investigation_proficiency": "V46",
+    "medicine_proficiency": "V75",
+    "nature_proficiency": "V48",
+    "perception_proficiency": "V77",
+    "performance_proficiency": "BA106",
+    "persuasion_proficiency": "BA127",
+    "religion_proficiency": "V50",
+    "sleight_of_hand_proficiency": "D76",
+    "stealth_proficiency": "D78",
+    "survival_proficiency": "V79",
+    # Skill bonuses
+    "acrobatics_bonus": "F74",
+    "animal_handling_bonus": "X71",
+    "arcana_bonus": "X42",
+    "athletics_bonus": "F53",
+    "deception_bonus": "X100",
+    "history_bonus": "X44",
+    "insight_bonus": "X73",
+    "intimidation_bonus": "X102",
+    "investigation_bonus": "X46",
+    "medicine_bonus": "X75",
+    "nature_bonus": "X48",
+    "perception_bonus": "X77",
+    "performance_bonus": "X104",
+    "persuasion_bonus": "X106",
+    "religion_bonus": "X50",
+    "sleight_of_hand_bonus": "F76",
+    "stealth_bonus": "F78",
+    "survival_bonus": "X79",
 }
 
 
@@ -173,15 +271,13 @@ def map_dnd_beyond_fields(dnd_beyond_data: list) -> Dict[str, Any]:
 
 
 def cleanup_special_cases(
-    character_data: list, mapped_data: Dict[str, Any]
+    mapped_data: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Handle special cases in the mapped data.
-    :param character_data: Character data to search
-    :type character_data: list
+    Cleanup special cases in the mapped character data.
     :param mapped_data: Mapped character data
     :type mapped_data: Dict[str, Any]
-    :return: Cleaned up character data
+    :return: Updated mapped character data
     :rtype: Dict[str, Any]
     """
     mapped_data["subclass"] = ""
@@ -190,7 +286,88 @@ def cleanup_special_cases(
     mapped_data["passive_abilities"] = (
         f"PER:{mapped_data.get('passive_perception')}, INS:{mapped_data.get('passive_insight')}, INV:{mapped_data.get('passive_investigation')}"
     )
+    return mapped_data
 
+def parse_skill_saves(
+    character_data: list, mapped_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Parse skill saves from character data and update mapped data.
+    :param character_data: Character data to search
+    :type character_data: list
+    :param mapped_data: Mapped character data
+    :type mapped_data: Dict[str, Any]
+    :return: Updated mapped character data
+    :rtype: Dict[str, Any]
+    """
+    # Handle skill saves
+    skills = [
+        "acrobatics",
+        "animal_handling",
+        "arcana",
+        "athletics",
+        "deception",
+        "history",
+        "insight",
+        "intimidation",
+        "investigation",
+        "medicine",
+        "nature",
+        "perception",
+        "performance",
+        "persuasion",
+        "religion",
+        "sleight_of_hand",
+        "stealth",
+        "survival",
+    ]
+    # Start of skill saves section is the first +, - or P after the Resistances anchor
+    anchor = anchor_points_map["Resistances"][1]
+
+    # Set default proficiency flags to False
+    for skill in skills:
+        mapped_data[f"{skill}_proficiency"] = False
+
+    # Fine first line of skill saves after anchor
+    skill_saves_start = anchor
+    while True:
+        line = character_data[0][skill_saves_start].strip()
+        if line.startswith(("+", "-", "P")):
+            break
+        skill_saves_start += 1
+    current_position = skill_saves_start
+    current_skill = None
+    while skills:
+        if not current_skill:
+            current_skill = skills.pop(0)
+        proficiency = f"{current_skill}_proficiency"
+        bonus = f"{current_skill}_bonus"
+        mod = f"{current_skill}_mod"
+        line = character_data[0][current_position].strip()
+        match line[0]:
+            case "P":
+                mapped_data[proficiency] = True
+            case "+" | "-":
+                mapped_data[bonus] = line
+                current_skill = None
+            case _:
+                # Assume it's the modifier
+                mapped_data[mod] = line
+        current_position += 1
+    return mapped_data
+
+def parse_ability_saves(
+    character_data: list, mapped_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Parse ability saves from character data and update mapped data.
+    :param character_data: Character data to search
+    :type character_data: list
+    :param mapped_data: Mapped character data
+    :type mapped_data: Dict[str, Any]
+    :return: Updated mapped character data
+    :rtype: Dict[str, Any]
+    """
     # Handle ability saves
     abilities = [
         "strength",
@@ -250,7 +427,13 @@ def write_to_sheet(
     ws = sheet.worksheet(worksheet_name)
     for field, cell in sheet_fields_to_sheet_cells_map.items():
         if field in mapped_data:
-            ws.update_acell(cell, mapped_data[field])
+            print(f"Updating cell {cell} with value {mapped_data[field]}")
+            try:
+                ws.update_acell(cell, mapped_data[field])
+            except gspread.exceptions.GSpreadException as e:
+                print(f"Error updating cell {cell}: {e} if rate limit, sleeping for 61 seconds")
+                time.sleep(61)
+                ws.update_acell(cell, mapped_data[field])
 
 
 def main() -> None:
@@ -282,7 +465,9 @@ def main() -> None:
 
     # Print a minimal summary so the user can verify loading worked
     mapped_data = map_dnd_beyond_fields(character_data)
-    mapped_data = cleanup_special_cases(character_data, mapped_data)
+    mapped_data = cleanup_special_cases(mapped_data)
+    mapped_data = parse_ability_saves(character_data, mapped_data)
+    mapped_data = parse_skill_saves(character_data, mapped_data)
     print("Data", mapped_data)
 
     # Write the mapped data to the Google Sheet
