@@ -133,7 +133,7 @@ class CharacterSheetWriter:
     pass
 
 
-class CharacterSheetWriterGsheet:
+class CharacterSheetWriterGsheet(CharacterSheetWriter):
     """
     Class for writing character sheets to Google Sheets.
     """
@@ -448,40 +448,6 @@ def parse_ability_saves(
         current_ability = None
 
     return mapped_data
-
-
-# def write_to_sheet(
-#     sheet_name: str, worksheet_name: str, mapped_data: Dict[str, Any]
-# ) -> None:
-#     """
-#     Write mapped character data to a Google Sheet.
-#     :param sheet_name: Name of the Google Spreadsheet
-#     :type sheet_name: str
-#     :param worksheet_name: Name of the worksheet/tab
-#     :type worksheet_name: str
-#     :param mapped_data: Mapped character data
-#     :type mapped_data: Dict[str, Any]
-#     :return: None
-#     :rtype: None
-#     """
-#     # Open the Google Sheet using the provided name
-#     # Authenticate with credentials and create a client to interact with Google Sheets
-#     credentials = ServiceAccountCredentials.from_json_keyfile_name(
-#         "google-credentials.json", scope
-#     )
-#     client = gspread.authorize(credentials)
-#     sheet = client.open(sheet_name)
-#     ws = sheet.worksheet(worksheet_name)
-#     # Collect updates and send them in a single batch to reduce API calls
-#     body = []
-#     for field, cell in sheet_fields_to_sheet_cells_map.items():
-#         if field in mapped_data:
-#             print(f"Queuing update for cell {cell} with value {mapped_data[field]}")
-#             body.append({"range": cell, "values": [[mapped_data[field]]]})
-#     if not body:
-#         return
-#     ws.batch_update(body)
-
 
 def main() -> None:
     """
